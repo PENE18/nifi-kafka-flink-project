@@ -1117,7 +1117,7 @@ CREATE TABLE minio.lakehouse.enriched_posts_partitioned (
 ✅ **Stream Processing**: Kafka provides reliable message queue  
 ✅ **Data Enrichment**: Flink adds analytics and metadata  
 ✅ **Data Lake Storage**: MinIO stores data in S3-compatible format  
-Next step to continue.....
+**Next step to continue.....**
 ✅ **SQL Analytics**: Trino enables SQL queries on object storage  
 ✅ **Time-based Partitioning**: Data organized by hour for efficient queries  
 ✅ **Multi-Zone Architecture**: Raw and processed data zones  
