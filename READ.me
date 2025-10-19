@@ -1,0 +1,4 @@
+docker cp flink-jars/flink-minio-trino-1.0-SNAPSHOT.jar flink-jobmanager:/opt/flink/usrlib/
+docker cp flink-jars/flink-minio-trino-1.0-SNAPSHOT.jar flink-jobmanager:/tmp/
+docker exec -it flink-jobmanager /opt/flink/bin/flink run /tmp/flink-minio-trino-1.0-SNAPSHOT.jar
+
