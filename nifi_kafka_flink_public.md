@@ -935,118 +935,9 @@ SELECT * FROM posts_raw LIMIT 10;
 -- Count messages in Kafka
 SELECT COUNT(*) FROM posts_raw;
 ```
-**Create Schema and Tables   To be continue**:
+**Create Schema and Tables   To be continue .....**:
 
-```sql
--- Create schema
-CREATE SCHEMA IF NOT EXISTS minio.lakehouse
-WITH (location = 's3a://datalake/');
 
--- Create external table for raw posts
-CREATE TABLE IF NOT EXISTS minio.lakehouse.enriched_posts (
-    processing_ts BIGINT,
-    processing_time VARCHAR,
-    ingestion_source VARCHAR,
-    storage_layer VARCHAR,
-    user_id INTEGER,
-    post_id INTEGER,
-    title VARCHAR,
-    body VARCHAR,
-    title_length INTEGER,
-    title_word_count INTEGER,
-    body_length INTEGER,
-    body_word_count INTEGER
-) WITH (
-    format = 'JSON',
-    external_location = 's3a://datalake/raw-data/posts/'
-);
-
--- Create external table for user stats
-CREATE TABLE IF NOT EXISTS minio.lakehouse.user_stats (
-    user_id INTEGER,
-    post_count INTEGER,
-    window_start VARCHAR,
-    window_end VARCHAR,
-    window_duration_seconds BIGINT,
-    first_post_ts VARCHAR,
-    last_post_ts VARCHAR,
-    processing_time VARCHAR
-) WITH (
-    format = 'JSON',
-    external_location = 's3a://datalake/processed-data/user-stats/'
-);
-```
-
-**Query Examples**:
-
-```sql
--- 1. Count total posts ingested
-SELECT COUNT(*) as total_posts
-FROM minio.lakehouse.enriched_posts;
-
--- 2. Posts per user
-SELECT user_id, COUNT(*) as post_count
-FROM minio.lakehouse.enriched_posts
-GROUP BY user_id
-ORDER BY post_count DESC;
-
--- 3. Average title and body lengths
-SELECT 
-    AVG(title_length) as avg_title_length,
-    AVG(body_length) as avg_body_length,
-    AVG(title_word_count) as avg_title_words,
-    AVG(body_word_count) as avg_body_words
-FROM minio.lakehouse.enriched_posts;
-
--- 4. Longest posts by user
-SELECT 
-    user_id,
-    post_id,
-    title,
-    body_length,
-    body_word_count
-FROM minio.lakehouse.enriched_posts
-ORDER BY body_length DESC
-LIMIT 10;
-
--- 5. User activity statistics
-SELECT 
-    user_id,
-    SUM(post_count) as total_posts,
-    COUNT(*) as time_windows_active
-FROM minio.lakehouse.user_stats
-GROUP BY user_id
-ORDER BY total_posts DESC;
-
--- 6. Ingestion timeline
-SELECT 
-    DATE_TRUNC('hour', FROM_UNIXTIME(processing_ts / 1000)) as hour,
-    COUNT(*) as posts_ingested
-FROM minio.lakehouse.enriched_posts
-GROUP BY DATE_TRUNC('hour', FROM_UNIXTIME(processing_ts / 1000))
-ORDER BY hour DESC;
-
--- 7. Most active users in recent windows
-SELECT 
-    user_id,
-    post_count,
-    window_start,
-    window_end
-FROM minio.lakehouse.user_stats
-ORDER BY window_start DESC, post_count DESC
-LIMIT 20;
-
--- 8. Join posts with aggregated stats
-SELECT 
-    p.user_id,
-    COUNT(DISTINCT p.post_id) as unique_posts,
-    AVG(p.title_length) as avg_title_len,
-    MAX(s.post_count) as max_posts_per_window
-FROM minio.lakehouse.enriched_posts p
-LEFT JOIN minio.lakehouse.user_stats s ON p.user_id = s.user_id
-GROUP BY p.user_id
-ORDER BY unique_posts DESC;
-```
 
 
 ---
@@ -1063,79 +954,6 @@ ORDER BY unique_posts DESC;
 
 ---
 
-## 🔧 Advanced Queries & Analytics
-
-### Data Quality Checks
-
-```sql
--- Check for duplicate posts
-SELECT post_id, COUNT(*) as duplicates
-FROM minio.lakehouse.enriched_posts
-GROUP BY post_id
-HAVING COUNT(*) > 1;
-
--- Check for null values
-SELECT 
-    COUNT(*) as total_rows,
-    SUM(CASE WHEN user_id IS NULL THEN 1 ELSE 0 END) as null_user_ids,
-    SUM(CASE WHEN title IS NULL THEN 1 ELSE 0 END) as null_titles
-FROM minio.lakehouse.enriched_posts;
-
--- Data freshness check
-SELECT 
-    MAX(FROM_UNIXTIME(processing_ts / 1000)) as latest_record,
-    DATE_DIFF('second', MAX(FROM_UNIXTIME(processing_ts / 1000)), CURRENT_TIMESTAMP) as seconds_ago
-FROM minio.lakehouse.enriched_posts;
-```
-
-### Content Analysis
-
-```sql
--- Word count distribution
-SELECT 
-    CASE 
-        WHEN body_word_count < 10 THEN 'Very Short'
-        WHEN body_word_count < 30 THEN 'Short'
-        WHEN body_word_count < 50 THEN 'Medium'
-        ELSE 'Long'
-    END as length_category,
-    COUNT(*) as post_count
-FROM minio.lakehouse.enriched_posts
-GROUP BY 1
-ORDER BY post_count DESC;
-
--- Title analysis
-SELECT 
-    title,
-    title_word_count,
-    body_word_count,
-    CAST(body_word_count AS DOUBLE) / CAST(title_word_count AS DOUBLE) as body_to_title_ratio
-FROM minio.lakehouse.enriched_posts
-ORDER BY body_to_title_ratio DESC
-LIMIT 10;
-```
-
-### Time Series Analysis
-
-```sql
--- Hourly ingestion rate
-SELECT 
-    DATE_FORMAT(FROM_UNIXTIME(processing_ts / 1000), '%Y-%m-%d %H:00:00') as hour,
-    COUNT(*) as records_per_hour
-FROM minio.lakehouse.enriched_posts
-GROUP BY 1
-ORDER BY 1 DESC;
-
--- User posting patterns by hour
-SELECT 
-    user_id,
-    HOUR(FROM_UNIXTIME(processing_ts / 1000)) as hour_of_day,
-    COUNT(*) as posts
-FROM minio.lakehouse.enriched_posts
-GROUP BY user_id, HOUR(FROM_UNIXTIME(processing_ts / 1000))
-ORDER BY posts DESC
-LIMIT 20;
-```
 
 ---
 
@@ -1197,20 +1015,6 @@ docker exec -it minio mc ls --recursive myminio/datalake/
 curl http://localhost:8081/jobs
 ```
 
-### Empty Tables in Trino
-
-```bash
-# Verify data exists in MinIO
-docker exec -it minio mc ls myminio/datalake/raw-data/posts/
-
-# Check file format
-docker exec -it minio mc cat myminio/datalake/raw-data/posts/2024-10-17-14/enriched-posts-0-0.json | head
-
-# Refresh table metadata in Trino
-# In Trino CLI:
-CALL system.sync_partition_metadata('lakehouse', 'enriched_posts', 'FULL');
-```
-
 ### Kafka Consumer Lag
 
 ```bash
@@ -1260,8 +1064,9 @@ JOBID=$(curl -s http://localhost:8081/jobs | jq -r '.jobs[0].id')
 curl -X PATCH http://localhost:8081/jobs/$JOBID?mode=cancel
 
 # Resubmit
-docker exec -it flink-jobmanager /opt/flink/bin/flink run \
-  /opt/flink/usrlib/flink-minio-trino-1.0-SNAPSHOT.jar
+docker cp flink-jars/flink-minio-trino-1.0-SNAPSHOT.jar flink-jobmanager:/tmp/
+docker exec -it flink-jobmanager /opt/flink/bin/flink run /tmp/flink-minio-trino-1.0-SNAPSHOT.jar
+
 ```
 
 ---
@@ -1312,6 +1117,7 @@ CREATE TABLE minio.lakehouse.enriched_posts_partitioned (
 ✅ **Stream Processing**: Kafka provides reliable message queue  
 ✅ **Data Enrichment**: Flink adds analytics and metadata  
 ✅ **Data Lake Storage**: MinIO stores data in S3-compatible format  
+Next step to continue.....
 ✅ **SQL Analytics**: Trino enables SQL queries on object storage  
 ✅ **Time-based Partitioning**: Data organized by hour for efficient queries  
 ✅ **Multi-Zone Architecture**: Raw and processed data zones  
@@ -1335,28 +1141,6 @@ CREATE TABLE minio.lakehouse.posts_iceberg (
 );
 ```
 
-### Add Metastore (Hive/Glue)
-- Replace file metastore with Hive Metastore
-- Better metadata management
-- Support for more table formats
-
-### Add Monitoring Stack
-- Prometheus for metrics
-- Grafana for dashboards
-- Alert manager for notifications
-
-### Implement Data Governance
-- Add Apache Ranger for access control
-- Implement data lineage tracking
-- Add data quality rules
-
-### Scale Out
-- Add more Flink TaskManagers
-- Partition Kafka topics
-- Deploy MinIO in distributed mode
-- Add Trino worker nodes
-
----
 
 ## 📚 Additional Resources
 
@@ -1367,11 +1151,3 @@ CREATE TABLE minio.lakehouse.posts_iceberg (
 
 ---
 
-## ✨ Summary
-
-This pipeline demonstrates a modern data lakehouse architecture:
-- **Bronze Layer** (Raw): Original data from API stored in MinIO
-- **Silver Layer** (Processed): Enriched and transformed data
-- **Gold Layer** (Analytics): Query-ready tables in Trino
-
-All running locally with Docker Compose for learning and development!
