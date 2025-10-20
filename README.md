@@ -1,7 +1,7 @@
 # NiFi + Kafka + Flink + MinIO + Trino Data Pipeline
 
 A complete modern data lakehouse pipeline using Apache NiFi, Kafka, Flink, MinIO (S3), and Trino with real public data.
-![Description of image](images/diagram.png)
+![Description of image](flink-jars/architecture_poc.png)
 
 ## 📋 Architecture Overview
 
