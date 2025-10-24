@@ -467,7 +467,7 @@ public class PostAnalyticsJob {
 ## 🚀 Setup Instructions
 
 
-# Create pom.xml and PostAnalyticsJob.java from above
+
 ```
 
 ### Step 2: Start Docker Services
